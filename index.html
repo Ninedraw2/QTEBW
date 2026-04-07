@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QTE Trainer R F T G</title>
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f0f0f;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.screen { display:none; text-align:center; }
+.active { display:block; }
+
+button {
+  padding: 10px 20px;
+  margin: 5px;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.key {
+  font-size: 70px;
+  margin: 20px;
+  transition: transform .15s, color .15s;
+}
+
+/* REAL FEEDBACK EFFECTS */
+.flash-success {
+  animation: successPop .25s;
+  color: #00ff88;
+  text-shadow: 0 0 20px #00ff88;
+}
+
+.flash-error {
+  animation: errorShake .25s;
+  color: #ff3355;
+  text-shadow: 0 0 20px #ff3355;
+}
+
+@keyframes successPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
+
+@keyframes errorShake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-12px) rotate(-2deg); }
+  50% { transform: translateX(12px) rotate(2deg); }
+  100% { transform: translateX(0); }
+}
+
+/* SCREEN FLASH */
+.flash-overlay {
+  position: absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  pointer-events:none;
+  opacity:0;
+}
+
+.flash-overlay.success {
+  animation: flashGreen .3s;
+}
+
+.flash-overlay.error {
+  animation: flashRed .3s;
+}
+
+@keyframes flashGreen {
+  0% { background: rgba(0,255,120,.0); opacity:1; }
+  50% { background: rgba(0,255,120,.25); }
+  100% { background: rgba(0,255,120,0); opacity:0; }
+}
+
+@keyframes flashRed {
+  0% { background: rgba(255,0,80,.0); opacity:1; }
+  50% { background: rgba(255,0,80,.3); }
+  100% { background: rgba(255,0,80,0); opacity:0; }
+}
+
+.bar {
+  width: 320px;
+  height: 12px;
+  background: #222;
+  margin: 10px auto;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height:100%;
+  width:0%;
+  background: linear-gradient(90deg,#00ff88,#00ccff);
+  transition: width .2s;
+}
+
+.overlay {
+  position:absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,.85);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  font-size:70px;
+}
+</style>
+</head>
+<body>
+
+<div id="menu" class="screen active">
+  <h1>QTE TRAINER</h1>
+  <button onclick="startGame('easy')">Fácil (15 acertos)</button>
+  <button onclick="startGame('medium')">Médio (30 acertos)</button>
+  <button onclick="startGame('hard')">Difícil (50 acertos)</button>
+</div>
+
+<div id="game" class="screen">
+  <div id="key" class="key">-</div>
+
+  <div class="bar">
+    <div id="barFill" class="bar-fill"></div>
+  </div>
+
+  <p id="info"></p>
+  <button onclick="pauseToggle()">Pause</button>
+</div>
+
+<div id="overlay" class="overlay"></div>
+<div id="flash" class="flash-overlay"></div>
+
+<div id="gameover" class="screen">
+  <h1>GAME OVER</h1>
+  <p id="goInfo"></p>
+  <button onclick="backMenu()">Menu</button>
+</div>
+
+<script>
+let state="menu";
+let score=0;
+let errors=0;
+let currentKey="";
+let canPress=false;
+let paused=false;
+let difficulty="easy";
+
+const config={
+ easy:{maxErrors:5, goal:15},
+ medium:{maxErrors:3, goal:30},
+ hard:{maxErrors:1, goal:50}
+};
+
+function showScreen(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+function startGame(diff){
+ difficulty=diff;
+ score=0;
+ errors=0;
+ showScreen('game');
+ countdown();
+ updateBar();
+}
+
+function countdown(){
+ let t=3;
+ document.getElementById('overlay').style.display='flex';
+
+ let i=setInterval(()=>{
+  document.getElementById('overlay').innerText=t;
+  t--;
+  if(t<0){
+   clearInterval(i);
+   document.getElementById('overlay').style.display='none';
+   nextQTE();
+  }
+ },1000);
+}
+
+function nextQTE(){
+ if(errors>=config[difficulty].maxErrors) return gameOver();
+
+ const keys=['R','F','T','G'];
+ currentKey=keys[Math.floor(Math.random()*keys.length)];
+
+ document.getElementById('key').innerText=currentKey;
+ canPress=true;
+}
+
+function pressKey(k){
+ if(!canPress||state=="gameover")return;
+
+ if(k===currentKey) success();
+ else error();
+}
+
+function success(){
+ score++;
+ canPress=false;
+ flash('success');
+ updateBar();
+ nextQTE();
+}
+
+function error(){
+ errors++;
+ canPress=false;
+ flash('error');
+ updateBar();
+ if(errors>=config[difficulty].maxErrors) return gameOver();
+ nextQTE();
+}
+
+function updateBar(){
+ let goal=config[difficulty].goal;
+ let pct=(score/goal)*100;
+ document.getElementById('barFill').style.width=pct+"%";
+}
+
+function flash(type){
+ let key=document.getElementById('key');
+ let fx=document.getElementById('flash');
+
+ key.classList.add(type=="success"?"flash-success":"flash-error");
+ fx.className="flash-overlay "+type;
+ fx.style.display="block";
+
+ setTimeout(()=>{
+  key.classList.remove("flash-success","flash-error");
+  fx.style.display="none";
+ },300);
+}
+
+function pauseToggle(){ paused=!paused; }
+
+function gameOver(){
+ state="gameover";
+ showScreen('gameover');
+
+ let msg=difficulty=="easy"?"Fácil completo":
+         difficulty=="medium"?"Boa tentativa":"Modo impossível";
+
+ document.getElementById('goInfo').innerText=msg+" | Score: "+score+" | Erros: "+errors;
+}
+
+function backMenu(){ showScreen('menu'); state="menu"; }
+
+window.addEventListener('keydown',e=>pressKey(e.key.toUpperCase()));
+</script>
+
+</body>
+</html>
