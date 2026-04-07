@@ -153,6 +153,7 @@ let errors=0;
 let currentKey="";
 let canPress=false;
 let paused=false;
+let idleTimer;
 let difficulty="easy";
 
 const config={
@@ -191,6 +192,10 @@ function countdown(){
 }
 
 function nextQTE(){
+ clearTimeout(idleTimer);
+ idleTimer = setTimeout(()=>{
+  if(state!=="gameover") gameOver();
+ },5000);
  if(errors>=config[difficulty].maxErrors) return gameOver();
 
  const keys=['R','F','T','G'];
@@ -201,6 +206,7 @@ function nextQTE(){
 }
 
 function pressKey(k){
+ clearTimeout(idleTimer);
  if(!canPress||state=="gameover")return;
 
  if(k===currentKey) success();
